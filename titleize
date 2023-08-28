@@ -1,0 +1,45 @@
+#!/usr/bin/env ruby
+
+require 'active_support/inflector/transliterate'
+
+include ActiveSupport::Inflector
+
+title_re = /^(#+[[:space:]]+)(.*)$/
+
+skip_titles = [
+  'HARP | Terre du Milieu',
+  "Navigation dans l'ouvrage",
+  'Table des matières'
+]
+skipping = false
+
+filename = ARGV.first
+
+out = ''
+
+File.read(filename).lines.each do |line|
+  line.chomp!
+
+  if (r = title_re.match(line))
+    skipping = false
+
+    if skip_titles.include?(r[2])
+      skipping = true
+      next
+    end
+
+    ref = parameterize(r[2])
+    out += "\n#{r[1]} #{r[2]} {##{ref}}\n"
+  else
+    next if skipping
+
+    line.gsub!(/\[«Chapitre [[:digit:]]+ – (?<title>[^»]+)»\]\([^)]+\)/) do
+      title = Regexp.last_match(:title)
+      ref = parameterize(title)
+      "chapitre \\ref{#{ref}} [#{title}](##{ref})"
+    end
+    out += "#{line}\n"
+  end
+end
+
+File.write(filename, out)
